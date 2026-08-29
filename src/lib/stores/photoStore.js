@@ -121,9 +121,26 @@ export function reorderKeywordsByTitle(photoId, newTitle) {
         return { ...kw, score };
       });
 
-      // Sort top 10 by score (descending), keep rest in original order
-      const top10 = scored.slice(0, 10).sort((a, b) => b.score - a.score);
+      // Separate into top 10 and rest
+      const top10 = scored.slice(0, 10);
       const rest = scored.slice(10);
+
+      // Sort top 10 by score descending, stable sort for equal scores
+      top10.sort((a, b) => b.score - a.score);
+
+      // If any keyword in rest has higher score than lowest in top 10, swap it in
+      const minTopScore = Math.min(...top10.map(k => k.score));
+      rest.forEach((kw, i) => {
+        if (kw.score > minTopScore) {
+          // Find lowest scorer in top 10 to swap
+          const lowestIdx = top10.reduce((minIdx, k, idx, arr) =>
+            k.score < arr[minIdx].score ? idx : minIdx, 0);
+          const displaced = top10[lowestIdx];
+          top10[lowestIdx] = kw;
+          rest[i] = displaced;
+          top10.sort((a, b) => b.score - a.score);
+        }
+      });
 
       const reordered = [...top10, ...rest].map(({ score, ...kw }) => kw);
 

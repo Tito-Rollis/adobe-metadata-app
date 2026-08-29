@@ -19,7 +19,7 @@ export async function POST({ request }) {
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageFile.type || 'image/jpeg';
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const categoriesList = ADOBE_STOCK_CATEGORIES.join(', ');
 
@@ -32,7 +32,7 @@ RULES:
    - NO brand names, NO people's real names, NO camera specs
 
 2. KEYWORDS:
-   - Generate ${MIN_KEYWORDS} to 40 keywords
+   - Generate exactly 49 keywords (maximum allowed by Adobe Stock)
    - IMPORTANT: Almost ALL keywords must be SINGLE words (e.g., beach, woman, sunset, running)
    - EXCEPTION: Only use multi-word for proper nouns or compound nouns that cannot be separated (e.g., "golden retriever", "Eiffel Tower", "Great Barrier Reef")
    - Do NOT use phrases like "one person", "senior woman", "red dress" — instead use: solo, senior, woman, red, dress

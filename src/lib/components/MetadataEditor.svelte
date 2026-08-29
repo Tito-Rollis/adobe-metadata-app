@@ -103,6 +103,14 @@
       keywords: [...photo.keywords, { id: crypto.randomUUID(), word }]
     });
     newKeyword = '';
+
+    // Trigger reorder after adding keyword, if title exists
+    if (photo.title.trim()) {
+      setTimeout(() => {
+        reorderKeywordsByTitle(photo.id, photo.title);
+        showReorderNotice();
+      }, 50);
+    }
   }
 
   /** Remove a keyword by id */
