@@ -1,33 +1,63 @@
 # Adobe Stock Auto Metadata App — Project Brief
 
-## Tujuan
-Web app untuk auto-generate metadata foto sesuai standar Adobe Stock.
-User upload foto, AI analisis gambar, lalu generate title + keywords secara otomatis.
+## Status
+- **Live:** https://adobe-metadata-app.vercel.app
+- **Repo:** https://github.com/Tito-Rollis/adobe-metadata-app (public)
+- **Last updated:** August 2026
 
 ---
 
-## Fitur Utama
+## Tujuan
+Web app untuk auto-generate metadata foto sesuai standar Adobe Stock.
+User upload foto, AI (Gemini Vision) analisis gambar, lalu generate title + keywords secara otomatis.
 
-1. **Upload Foto**
-   - Drag & drop atau klik untuk upload
-   - Support multiple files sekaligus
+---
 
-2. **Auto-Generate Metadata via AI (Gemini Vision)**
-   - Analisis gambar dengan Google Gemini 1.5 Flash (free tier)
-   - Generate: Title, Keywords, Category
+## Tech Stack (Final)
+- **Frontend + Backend:** SvelteKit 2 + Svelte 4
+- **Styling:** Tailwind CSS 3
+- **AI Vision:** Google Gemini 3.6 Flash (free tier, 1.500 req/hari)
+- **Drag & Drop:** svelte-dnd-action
+- **Deploy:** Vercel (adapter-vercel)
+- **Repo:** GitHub (public)
 
-3. **Edit Metadata Manual**
-   - Edit title, keywords, category secara manual
-   - Tambah / hapus / drag-reorder keywords
+---
 
-4. **Smart Keyword Reorder saat Title Berubah**
-   - Saat title diedit, sistem re-rank 10 keyword pertama
-   - Berdasarkan kedekatan/relevansi dengan title baru
-   - Keywords yang ada TIDAK berubah, TIDAK ditambah, TIDAK dihapus
-   - Hanya URUTAN yang berubah, terutama 10 keyword pertama
+## Struktur File
+```
+src/
+├── app.html
+├── app.css                          # Tailwind base + custom scrollbar
+├── lib/
+│   ├── constants.js                 # Adobe Stock categories, limits
+│   ├── stores/
+│   │   └── photoStore.js            # Svelte store: photos, selectedPhoto, reorderKeywordsByTitle
+│   └── components/
+│       ├── Header.svelte            # Logo + Export CSV button
+│       ├── FileList.svelte          # Panel kiri: upload + list foto
+│       └── MetadataEditor.svelte    # Panel kanan: title, keywords, category editor
+└── routes/
+    ├── +layout.svelte
+    ├── +page.svelte                 # Main page (split panel layout)
+    └── api/
+        └── generate/
+            └── +server.js           # POST /api/generate — Gemini Vision API call
+```
 
-5. **Export CSV**
-   - Format CSV untuk bulk upload ke Adobe Stock Contributor Portal
+---
+
+## Fitur
+
+1. **Upload Foto** — drag & drop atau klik, multiple files
+2. **Auto-Generate Metadata** — Gemini Vision generate title + keywords + category
+3. **Edit Metadata Manual** — edit title, keywords, category
+4. **Drag & Drop Reorder Keywords** — reorder keyword chips secara manual
+5. **Smart Keyword Reorder saat Title Berubah**
+   - Saat title diedit (debounce 600ms), top 10 keywords otomatis di-rerank berdasarkan relevansi ke title baru
+   - Keywords yang ada TIDAK berubah, TIDAK ditambah, TIDAK dihapus — hanya urutan yang berubah
+   - Keyword dari posisi 11+ bisa swap masuk top 10 kalau score-nya lebih tinggi
+6. **Auto Reorder saat Keyword Ditambah Manual** — keyword baru langsung masuk posisi yang tepat berdasarkan title
+7. **Export CSV** — format siap upload ke Adobe Stock Contributor Portal
 
 ---
 
@@ -35,50 +65,64 @@ User upload foto, AI analisis gambar, lalu generate title + keywords secara otom
 
 ### Title
 - Ideal 70 karakter, max 200
-- Natural language, deskriptif
-- Setiap title unik per foto
+- Natural language, deskriptif, unik per foto
+- Harus menjawab: Who, Where, What, When, Mood, Concept
 - Keyword paling relevan harus muncul di title DAN top 10 keywords
 - Hindari: brand name, nama orang, istilah teknis kamera
 
-#### Title harus menjawab:
-- **Who?** — Gender, Age, Ethnicity, Role
-- **Where?** — Indoors/outdoors, lokasi spesifik
-- **Who are they with?** — Jumlah orang, hubungan/role
-- **What?** — Aktivitas yang dilakukan
-- **When?** — Waktu (morning, night, dll)
-- **Mood?** — Positive, excited, anxious, dll
-- **Clothing?** — Pakaian notable
-- **Concept?** — Fitness, healthcare, dll
-
 ### Keywords
-- Maks 49 keywords per foto
-- Optimal: **15–35 keywords**
-- **10 keyword pertama paling penting** — paling berpengaruh di search ranking
-- Bahasa: **English**
-- Format: **single word** untuk semua keyword biasa
-  - ✅ `beach`, `woman`, `sunset`, `running`
-  - ✅ Multi-word HANYA untuk proper noun / compound noun yang tidak bisa dipisah
-    - Contoh: `golden retriever`, `Golden Gate Bridge`, `Eiffel Tower`
-  - ❌ `senior woman` → pisah jadi `senior` + `woman`
-  - ❌ `one person` → `solo` atau `alone`
+- Maks 49, optimal 15–35
+- **10 keyword pertama paling penting** di search Adobe Stock
+- Bahasa: English
+- Format: **single word** (contoh: beach, woman, sunset)
+- **Exception:** proper noun / compound noun yang tidak bisa dipisah (golden retriever, Eiffel Tower, Great Barrier Reef)
 - Hindari: brand names, sinonim berlebihan, keyword spam
-- Tipe keyword yang di-cover:
-  - Subject & action
-  - Setting (indoors, outdoors, day, night)
-  - Mood & concept
-  - Demographics (ethnicity, age, gender)
-  - Camera angle / viewpoint
-  - Location
 
 ---
 
-## Tech Stack
-- **Frontend:** React
-- **Backend:** Node.js + Express
-- **AI Vision:** Google Gemini 1.5 Flash (free tier)
-  - 15 req/menit, 1.500 req/hari
-- **Export:** CSV
-- **Deploy:** Vercel
+## Design
+- **Theme:** Dark (navy dark)
+- **Layout:** Split panel — file list (kiri) + metadata editor (kanan)
+- **Colors:**
+  - bg-primary: `#1a1a2e`
+  - bg-secondary: `#16213e`
+  - accent: `#e8441a` (Adobe orange-red)
+  - text-muted: `#8888aa`
+- Top 10 keywords ditandai dengan badge nomor berwarna accent
+
+---
+
+## Environment Variables
+```env
+GEMINI_API_KEY=...   # Google Gemini API key (di .env lokal & Vercel Secret)
+```
+- `.env` tidak di-commit ke GitHub (ada di .gitignore)
+- Di Vercel disimpan sebagai Secret (production)
+
+---
+
+## Keputusan Teknis
+- Pakai **Svelte 4** (bukan 5) karena svelte-dnd-action belum support Svelte 5
+- Pakai **SvelteKit** sekalian untuk backend API routes (tidak perlu Node/Express terpisah)
+- Model Gemini: **gemini-3.6-flash** (model terbaru yang tersedia, 2026)
+- Tidak integrasi ImStocker API (berbayar), hanya Gemini
+
+---
+
+## Cara Lanjut Development
+```bash
+git clone https://github.com/Tito-Rollis/adobe-metadata-app.git
+cd adobe-metadata-app
+npm install
+cp .env.example .env
+# Isi GEMINI_API_KEY di .env
+npm run dev
+```
+
+Untuk deploy ulang ke Vercel:
+```bash
+vercel --prod
+```
 
 ---
 
