@@ -12,8 +12,8 @@ User upload foto, AI analisis gambar, lalu generate title + keywords secara otom
    - Drag & drop atau klik untuk upload
    - Support multiple files sekaligus
 
-2. **Auto-Generate Metadata via AI (Vision)**
-   - Analisis gambar dengan AI
+2. **Auto-Generate Metadata via AI (Gemini Vision)**
+   - Analisis gambar dengan Google Gemini 1.5 Flash (free tier)
    - Generate: Title, Keywords, Category
 
 3. **Edit Metadata Manual**
@@ -31,7 +31,7 @@ User upload foto, AI analisis gambar, lalu generate title + keywords secara otom
 
 ---
 
-## Aturan Metadata Adobe Stock (dari panduan resmi)
+## Aturan Metadata Adobe Stock
 
 ### Title
 - Ideal 70 karakter, max 200
@@ -41,7 +41,7 @@ User upload foto, AI analisis gambar, lalu generate title + keywords secara otom
 - Hindari: brand name, nama orang, istilah teknis kamera
 
 #### Title harus menjawab:
-- **Who?** — Gender, Age, Ethnicity, Role (dari model release)
+- **Who?** — Gender, Age, Ethnicity, Role
 - **Where?** — Indoors/outdoors, lokasi spesifik
 - **Who are they with?** — Jumlah orang, hubungan/role
 - **What?** — Aktivitas yang dilakukan
@@ -54,38 +54,31 @@ User upload foto, AI analisis gambar, lalu generate title + keywords secara otom
 - Maks 49 keywords per foto
 - Optimal: **15–35 keywords**
 - **10 keyword pertama paling penting** — paling berpengaruh di search ranking
-- Keyword individual (bukan frasa) → "red", "dress" bukan "red dress"
-- Sertakan: subject, action, setting, mood/concept, demographics, camera angle
-- Hindari: brand names, sinonim berlebihan, keyword spam (tidak relevan)
-- Jangan duplikasi sinonim (misal: dog, dogs, canine — cukup "dog")
-
-#### Tipe keyword yang perlu di-cover:
-- Separate descriptive elements (White, fluffy, young)
-- General & specific (Animal, mammal → golden retriever)
-- Location-based (London, England)
-- Conceptual (Solitude, childhood, milestone)
-- Number of people (One person, three people)
-- Setting (Indoors, outdoors, day, night)
-- Viewpoint/angle (Aerial view, portrait, high-angle)
-- Model info (Black woman, senior man, Latinx teen)
+- Bahasa: **English**
+- Format: **single word** untuk semua keyword biasa
+  - ✅ `beach`, `woman`, `sunset`, `running`
+  - ✅ Multi-word HANYA untuk proper noun / compound noun yang tidak bisa dipisah
+    - Contoh: `golden retriever`, `Golden Gate Bridge`, `Eiffel Tower`
+  - ❌ `senior woman` → pisah jadi `senior` + `woman`
+  - ❌ `one person` → `solo` atau `alone`
+- Hindari: brand names, sinonim berlebihan, keyword spam
+- Tipe keyword yang di-cover:
+  - Subject & action
+  - Setting (indoors, outdoors, day, night)
+  - Mood & concept
+  - Demographics (ethnicity, age, gender)
+  - Camera angle / viewpoint
+  - Location
 
 ---
 
-## Tech Stack (Rencana)
+## Tech Stack
 - **Frontend:** React
 - **Backend:** Node.js + Express
-- **AI Vision:** *(belum ditentukan — OpenAI GPT-4 Vision atau Google Gemini Vision)*
+- **AI Vision:** Google Gemini 1.5 Flash (free tier)
+  - 15 req/menit, 1.500 req/hari
 - **Export:** CSV
-
----
-
-## Pertanyaan yang Belum Dijawab (perlu konfirmasi sebelum build)
-
-1. **AI Vision** — mau pakai OpenAI GPT-4 Vision atau Google Gemini Vision?
-   - Sudah punya API key salah satunya?
-2. **Export** — CSV saja, atau perlu embed langsung ke EXIF/IPTC metadata file foto?
-3. **Bahasa metadata** — English (standar Adobe Stock)?
-4. **Deploy** — cukup local/localhost, atau perlu di-deploy ke server?
+- **Deploy:** Vercel
 
 ---
 
