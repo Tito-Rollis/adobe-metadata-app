@@ -1,7 +1,7 @@
 <script>
   import { dndzone } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
-  import { selectedPhoto, updatePhoto, reorderKeywordsByTitle } from '$lib/stores/photoStore.js';
+  import { selectedPhoto, updatePhoto, reorderKeywordsByTitle, generateMetadataForPhoto } from '$lib/stores/photoStore.js';
   import {
     ADOBE_STOCK_CATEGORIES,
     MAX_TITLE_LENGTH,
@@ -16,102 +16,10 @@
   // Local copies bound to the selected photo
   $: photo = $selectedPhoto;
 
-  /**
-   * Resize and compress image in browser before sending to API
-   * Vercel has a 4.5MB payload limit for serverless functions
-   * @param {File} file
-   * @returns {Promise<Blob>}
-   */
-  async function compressImage(file) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-
-      img.onload = () => {
-        // Max dimension 1600px, enough for AI analysis
-        const MAX_DIM = 1600;
-        let { width, height } = img;
-
-        if (width > MAX_DIM || height > MAX_DIM) {
-          if (width > height) {
-            height = Math.round((height * MAX_DIM) / width);
-            width = MAX_DIM;
-          } else {
-            width = Math.round((width * MAX_DIM) / height);
-            height = MAX_DIM;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        URL.revokeObjectURL(url);
-
-        // Compress to JPEG quality 0.85
-        canvas.toBlob(
-          (blob) => resolve(blob || file),
-          'image/jpeg',
-          0.85
-        );
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(file); // fallback to original
-      };
-
-      img.src = url;
-    });
-  }
-
   /** Generate metadata via Gemini API */
   async function generateMetadata() {
-    if (!photo || photo.status === 'generating') return;
-
-    updatePhoto(photo.id, { status: 'generating', errorMessage: null });
-
-    try {
-      // Compress image before sending to avoid Vercel 4.5MB payload limit
-      const compressed = await compressImage(photo.file);
-
-      const formData = new FormData();
-      formData.append('image', compressed, 'image.jpg');
-
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || 'Failed to generate');
-      }
-
-      const metadata = await response.json();
-
-      // Convert keywords to objects with IDs for dnd
-      const keywords = metadata.keywords.map(word => ({
-        id: crypto.randomUUID(),
-        word
-      }));
-
-      updatePhoto(photo.id, {
-        status: 'done',
-        title: metadata.title,
-        keywords,
-        category: metadata.category
-      });
-
-    } catch (err) {
-      console.error(err);
-      updatePhoto(photo.id, {
-        status: 'error',
-        errorMessage: err.message || 'Something went wrong'
-      });
-    }
+    if (!photo) return;
+    await generateMetadataForPhoto(photo.id);
   }
 
   /** Handle title input change */

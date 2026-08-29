@@ -1,10 +1,8 @@
 <script>
-  import { photos } from '$lib/stores/photoStore.js';
+  import { photos, isBulkGenerating, generateAllMetadata } from '$lib/stores/photoStore.js';
 
-  /** @param {import('svelte/store').Readable<import('$lib/stores/photoStore.js').PhotoItem[]>} photosStore */
   function exportCSV() {
     const rows = [];
-    // CSV header — Adobe Stock bulk upload format
     rows.push(['Filename', 'Title', 'Keywords', 'Category', 'Release(s)']);
 
     $photos.forEach(photo => {
@@ -35,6 +33,8 @@
   }
 
   $: doneCount = $photos.filter(p => p.status === 'done' || p.keywords.length > 0).length;
+  $: pendingCount = $photos.filter(p => p.status === 'pending' || p.status === 'error').length;
+  $: generatingCount = $photos.filter(p => p.status === 'generating').length;
 </script>
 
 <header class="flex items-center justify-between px-6 py-4 bg-bg-secondary border-b border-border">
@@ -52,10 +52,42 @@
   </div>
 
   <div class="flex items-center gap-3">
-    {#if doneCount > 0}
-      <span class="text-text-muted text-sm">{doneCount} photo{doneCount > 1 ? 's' : ''} ready</span>
+    <!-- Status info -->
+    {#if $isBulkGenerating}
+      <span class="text-yellow-400 text-sm flex items-center gap-1.5">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
+          <path d="M21 12a9 9 0 00-9-9"/>
+        </svg>
+        Generating {generatingCount > 0 ? `(${doneCount}/${$photos.length})` : '...'}
+      </span>
+    {:else if doneCount > 0}
+      <span class="text-text-muted text-sm">{doneCount}/{$photos.length} ready</span>
     {/if}
 
+    <!-- Generate All button -->
+    {#if pendingCount > 0 || $isBulkGenerating}
+      <button
+        on:click={generateAllMetadata}
+        disabled={$isBulkGenerating || pendingCount === 0}
+        class="flex items-center gap-2 px-4 py-2 bg-bg-primary border border-border hover:border-accent
+               disabled:opacity-50 disabled:cursor-not-allowed text-text-primary text-sm font-medium
+               rounded-lg transition-colors"
+      >
+        {#if $isBulkGenerating}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
+            <path d="M21 12a9 9 0 00-9-9"/>
+          </svg>
+          Generating...
+        {:else}
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5,3 19,12 5,21"/>
+          </svg>
+          Generate All ({pendingCount})
+        {/if}
+      </button>
+    {/if}
+
+    <!-- Export CSV button -->
     <button
       on:click={exportCSV}
       disabled={doneCount === 0}

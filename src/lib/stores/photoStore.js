@@ -1,4 +1,5 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
+import { ADOBE_STOCK_CATEGORIES, MAX_KEYWORDS } from '$lib/constants.js';
 
 /**
  * @typedef {Object} Keyword
@@ -147,4 +148,126 @@ export function reorderKeywordsByTitle(photoId, newTitle) {
       return { ...p, keywords: reordered };
     })
   );
+}
+
+/**
+ * Resize and compress image in browser before sending to API
+ * @param {File} file
+ * @returns {Promise<Blob>}
+ */
+export function compressImage(file) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      const MAX_DIM = 1600;
+      let { width, height } = img;
+
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round((height * MAX_DIM) / width);
+          width = MAX_DIM;
+        } else {
+          width = Math.round((width * MAX_DIM) / height);
+          height = MAX_DIM;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) => resolve(blob || file),
+        'image/jpeg',
+        0.85
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+}
+
+/**
+ * Generate metadata for a single photo via Gemini API
+ * @param {string} photoId
+ * @returns {Promise<void>}
+ */
+export async function generateMetadataForPhoto(photoId) {
+  const photo = get(photos).find(p => p.id === photoId);
+  if (!photo || photo.status === 'generating') return;
+
+  updatePhoto(photoId, { status: 'generating', errorMessage: null });
+
+  try {
+    const compressed = await compressImage(photo.file);
+    const formData = new FormData();
+    formData.append('image', compressed, 'image.jpg');
+
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.message || 'Failed to generate');
+    }
+
+    const metadata = await response.json();
+
+    const keywords = metadata.keywords.map(word => ({
+      id: crypto.randomUUID(),
+      word
+    }));
+
+    updatePhoto(photoId, {
+      status: 'done',
+      title: metadata.title,
+      keywords,
+      category: metadata.category
+    });
+
+  } catch (err) {
+    console.error('Gemini API error:', err);
+    updatePhoto(photoId, {
+      status: 'error',
+      errorMessage: err.message || 'Something went wrong'
+    });
+  }
+}
+
+/** @type {import('svelte/store').Writable<boolean>} */
+export const isBulkGenerating = writable(false);
+
+/**
+ * Generate metadata for all pending/error photos sequentially
+ * Sequential to avoid Gemini free tier rate limit (15 req/min)
+ */
+export async function generateAllMetadata() {
+  const allPhotos = get(photos);
+  const targets = allPhotos.filter(p => p.status === 'pending' || p.status === 'error');
+
+  if (targets.length === 0) return;
+
+  isBulkGenerating.set(true);
+
+  for (const photo of targets) {
+    await generateMetadataForPhoto(photo.id);
+    // Small delay between requests to respect rate limit
+    if (targets.indexOf(photo) < targets.length - 1) {
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
+
+  isBulkGenerating.set(false);
 }
