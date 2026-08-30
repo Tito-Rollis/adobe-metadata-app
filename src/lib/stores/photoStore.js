@@ -199,6 +199,7 @@ export function compressImage(file) {
 
 /**
  * Generate metadata for a single photo via Gemini API
+ * Retries once after 5s if Gemini returns a 500 error
  * @param {string} photoId
  * @returns {Promise<void>}
  */
@@ -208,53 +209,67 @@ export async function generateMetadataForPhoto(photoId) {
 
   updatePhoto(photoId, { status: 'generating', errorMessage: null });
 
-  try {
-    const compressed = await compressImage(photo.file);
-    const formData = new FormData();
-    formData.append('image', compressed, 'image.jpg');
+  let lastError = null;
 
-    const response = await fetch('/api/generate', {
-      method: 'POST',
-      body: formData
-    });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const compressed = await compressImage(photo.file);
+      const formData = new FormData();
+      formData.append('image', compressed, 'image.jpg');
 
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || 'Failed to generate');
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: `HTTP ${response.status}` }));
+        throw new Error(err.message || `HTTP ${response.status}`);
+      }
+
+      const metadata = await response.json();
+
+      // Merge include keywords with AI keywords, skip duplicates, respect max limit
+      const included = get(includeKeywords);
+      const aiWords = metadata.keywords;
+      const aiWordSet = new Set(aiWords.map(w => w.toLowerCase()));
+
+      const extraWords = included
+        .filter(w => !aiWordSet.has(w.toLowerCase()))
+        .slice(0, Math.max(0, MAX_KEYWORDS - aiWords.length));
+
+      const allWords = [...aiWords, ...extraWords];
+
+      const keywords = allWords.map(word => ({
+        id: crypto.randomUUID(),
+        word
+      }));
+
+      updatePhoto(photoId, {
+        status: 'done',
+        title: metadata.title,
+        keywords,
+        category: metadata.category
+      });
+
+      return; // success
+
+    } catch (err) {
+      lastError = err;
+      console.error(`Gemini API error (attempt ${attempt}/3):`, err);
+
+      if (attempt < 3) {
+        // Wait before retry: 5s on first fail, 10s on second fail
+        await new Promise(r => setTimeout(r, attempt * 5000));
+      }
     }
-
-    const metadata = await response.json();
-
-    // Merge include keywords with AI keywords, skip duplicates, respect max limit
-    const included = get(includeKeywords);
-    const aiWords = metadata.keywords;
-    const aiWordSet = new Set(aiWords.map(w => w.toLowerCase()));
-
-    const extraWords = included
-      .filter(w => !aiWordSet.has(w.toLowerCase()))
-      .slice(0, Math.max(0, MAX_KEYWORDS - aiWords.length));
-
-    const allWords = [...aiWords, ...extraWords];
-
-    const keywords = allWords.map(word => ({
-      id: crypto.randomUUID(),
-      word
-    }));
-
-    updatePhoto(photoId, {
-      status: 'done',
-      title: metadata.title,
-      keywords,
-      category: metadata.category
-    });
-
-  } catch (err) {
-    console.error('Gemini API error:', err);
-    updatePhoto(photoId, {
-      status: 'error',
-      errorMessage: err.message || 'Something went wrong'
-    });
   }
+
+  // All attempts failed
+  updatePhoto(photoId, {
+    status: 'error',
+    errorMessage: lastError?.message || 'Something went wrong'
+  });
 }
 
 /** @type {import('svelte/store').Writable<boolean>} */
@@ -278,11 +293,18 @@ export async function generateAllMetadata() {
 
   isBulkGenerating.set(true);
 
-  for (const photo of targets) {
+  for (let i = 0; i < targets.length; i++) {
+    const photo = targets[i];
+
+    // Skip if somehow already done
+    const current = get(photos).find(p => p.id === photo.id);
+    if (!current || current.status === 'done') continue;
+
     await generateMetadataForPhoto(photo.id);
-    // Small delay between requests to respect rate limit
-    if (targets.indexOf(photo) < targets.length - 1) {
-      await new Promise(r => setTimeout(r, 500));
+
+    // Delay between requests to respect rate limit (4s = safe for 15 req/min)
+    if (i < targets.length - 1) {
+      await new Promise(r => setTimeout(r, 4000));
     }
   }
 
