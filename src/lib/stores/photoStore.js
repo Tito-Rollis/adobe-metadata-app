@@ -217,6 +217,11 @@ export async function generateMetadataForPhoto(photoId) {
       const formData = new FormData();
       formData.append('image', compressed, 'image.jpg');
 
+      // Tell API how many keywords to generate — reserve slots for include keywords
+      const included = get(includeKeywords);
+      const aiKeywordCount = Math.max(15, MAX_KEYWORDS - included.length);
+      formData.append('keywordCount', String(aiKeywordCount));
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         body: formData
@@ -229,16 +234,15 @@ export async function generateMetadataForPhoto(photoId) {
 
       const metadata = await response.json();
 
-      // Merge include keywords with AI keywords, skip duplicates, respect max limit
-      const included = get(includeKeywords);
+      // Merge include keywords FIRST (they take priority), then AI keywords fill remaining slots
       const aiWords = metadata.keywords;
-      const aiWordSet = new Set(aiWords.map(w => w.toLowerCase()));
+      const includedSet = new Set(included.map(w => w.toLowerCase()));
 
-      const extraWords = included
-        .filter(w => !aiWordSet.has(w.toLowerCase()))
-        .slice(0, Math.max(0, MAX_KEYWORDS - aiWords.length));
+      const filteredAiWords = aiWords
+        .filter(w => !includedSet.has(w.toLowerCase()))
+        .slice(0, Math.max(0, MAX_KEYWORDS - included.length));
 
-      const allWords = [...aiWords, ...extraWords];
+      const allWords = [...included, ...filteredAiWords];
 
       const keywords = allWords.map(word => ({
         id: crypto.randomUUID(),

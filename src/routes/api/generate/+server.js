@@ -15,6 +15,7 @@ export async function POST({ request }) {
   try {
     const formData = await request.formData();
     const imageFile = formData.get('image');
+    const keywordCount = parseInt(formData.get('keywordCount') || '49');
 
     if (!imageFile) {
       throw error(400, 'No image provided');
@@ -37,7 +38,7 @@ RULES:
    - NO brand names, NO people's real names, NO camera specs
 
 2. KEYWORDS:
-   - Generate exactly 49 keywords (maximum allowed by Adobe Stock)
+   - Generate exactly ${keywordCount} keywords
    - IMPORTANT: Almost ALL keywords must be SINGLE words (e.g., beach, woman, sunset, running)
    - EXCEPTION: Only use multi-word for proper nouns or compound nouns that cannot be separated (e.g., "golden retriever", "Eiffel Tower", "Great Barrier Reef")
    - Do NOT use phrases like "one person", "senior woman", "red dress" — instead use: solo, senior, woman, red, dress
