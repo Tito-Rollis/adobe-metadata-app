@@ -7,10 +7,10 @@
   let includeInput = '';
 
   const STATUS_ICONS = {
-    pending:    { icon: '○', class: 'text-text-muted' },
-    generating: { icon: '⟳', class: 'text-yellow-400 animate-spin' },
-    done:       { icon: '✓', class: 'text-green-400' },
-    error:      { icon: '✗', class: 'text-red-400' }
+    pending:    { icon: '●', class: 'text-yellow-400', label: 'Not edited' },
+    generating: { icon: '⟳', class: 'text-yellow-400 animate-spin', label: 'Generating' },
+    done:       { icon: '●', class: 'text-green-400', label: 'Edited' },
+    error:      { icon: '✗', class: 'text-red-400', label: 'Error' }
   };
 
   /** @param {DragEvent} e */
@@ -167,11 +167,11 @@
             {#if photo.status === 'generating'}
               Generating...
             {:else if photo.status === 'done'}
-              {photo.keywords.length} keywords
+              {photo.keywords.length} keywords · <span class="text-green-400">Edited</span>
             {:else if photo.status === 'error'}
-              Error
+              <span class="text-red-400">Error</span>
             {:else}
-              Pending
+              <span class="text-yellow-400">Not edited</span>
             {/if}
           </p>
         </div>
