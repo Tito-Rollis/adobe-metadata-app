@@ -5,6 +5,11 @@ import { ADOBE_STOCK_CATEGORIES, MAX_TITLE_LENGTH, MAX_KEYWORDS, MIN_KEYWORDS } 
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
+// Tell Vercel to allow up to 60s for this function
+export const config = {
+  maxDuration: 60
+};
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
   try {
