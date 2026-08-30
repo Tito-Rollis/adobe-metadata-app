@@ -1,8 +1,10 @@
 <script>
-  import { photos, selectedPhotoId, addPhotos, removePhoto } from '$lib/stores/photoStore.js';
+  import { photos, selectedPhotoId, addPhotos, removePhoto, includeKeywords } from '$lib/stores/photoStore.js';
+  import { MAX_KEYWORDS } from '$lib/constants.js';
 
   let isDragOver = false;
   let fileInput;
+  let includeInput = '';
 
   const STATUS_ICONS = {
     pending:    { icon: '○', class: 'text-text-muted' },
@@ -33,7 +35,6 @@
   function handleFileInput(e) {
     const files = Array.from(/** @type {HTMLInputElement} */ (e.target).files || []);
     if (files.length > 0) addPhotos(files);
-    // Reset input
     if (fileInput) fileInput.value = '';
   }
 
@@ -54,6 +55,41 @@
   /** @param {string} name */
   function truncateName(name) {
     return name.length > 22 ? name.slice(0, 19) + '...' : name;
+  }
+
+  /** Add include keywords from input (comma-separated) */
+  function addIncludeKeywords() {
+    if (!includeInput.trim()) return;
+
+    const words = includeInput
+      .split(',')
+      .map(w => w.trim().toLowerCase())
+      .filter(w => w.length > 0);
+
+    includeKeywords.update(current => {
+      const existing = new Set(current);
+      const toAdd = words.filter(w => !existing.has(w));
+      return [...current, ...toAdd];
+    });
+
+    includeInput = '';
+  }
+
+  /** Remove one include keyword */
+  function removeIncludeKeyword(word) {
+    includeKeywords.update(current => current.filter(w => w !== word));
+  }
+
+  /** Clear all include keywords */
+  function clearIncludeKeywords() {
+    includeKeywords.set([]);
+  }
+
+  function handleIncludeKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addIncludeKeywords();
+    }
   }
 </script>
 
@@ -172,5 +208,66 @@
         <p class="text-text-muted text-xs mt-1">Upload photos to get started</p>
       </div>
     {/if}
+  </div>
+  <!-- Include Keywords Section -->
+  <div class="border-t border-border p-3 space-y-2">
+    <div class="flex items-center justify-between">
+      <span class="text-xs text-text-muted font-medium uppercase tracking-wider">Include Keywords</span>
+      {#if $includeKeywords.length > 0}
+        <button
+          on:click={clearIncludeKeywords}
+          class="text-xs text-text-muted hover:text-red-400 transition-colors"
+          title="Clear all include keywords"
+        >
+          Clear
+        </button>
+      {/if}
+    </div>
+    <p class="text-xs text-text-muted leading-relaxed">
+      Added to <span class="text-accent">all photos</span> on generate
+    </p>
+
+    <!-- Include keyword chips -->
+    {#if $includeKeywords.length > 0}
+      <div class="flex flex-wrap gap-1.5">
+        {#each $includeKeywords as word}
+          <span class="flex items-center gap-1 px-2 py-1 bg-accent/15 border border-accent/30
+                       text-white text-xs rounded-full">
+            {word}
+            <button
+              on:click={() => removeIncludeKeyword(word)}
+              class="text-text-muted hover:text-red-400 transition-colors"
+              aria-label="Remove {word}"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+          </span>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- Input -->
+    <div class="flex gap-1.5">
+      <input
+        type="text"
+        bind:value={includeInput}
+        on:keydown={handleIncludeKeydown}
+        placeholder="e.g. indonesia, bali"
+        class="flex-1 min-w-0 bg-bg-primary border border-border rounded-lg px-3 py-1.5
+               text-text-primary placeholder-text-muted text-xs
+               focus:outline-none focus:border-accent transition-colors"
+      />
+      <button
+        on:click={addIncludeKeywords}
+        disabled={!includeInput.trim()}
+        class="px-2.5 py-1.5 bg-bg-primary border border-border hover:border-accent
+               disabled:opacity-40 disabled:cursor-not-allowed text-text-muted
+               hover:text-text-primary text-xs rounded-lg transition-colors flex-shrink-0"
+      >
+        Add
+      </button>
+    </div>
   </div>
 </aside>

@@ -225,7 +225,18 @@ export async function generateMetadataForPhoto(photoId) {
 
     const metadata = await response.json();
 
-    const keywords = metadata.keywords.map(word => ({
+    // Merge include keywords with AI keywords, skip duplicates, respect max limit
+    const included = get(includeKeywords);
+    const aiWords = metadata.keywords;
+    const aiWordSet = new Set(aiWords.map(w => w.toLowerCase()));
+
+    const extraWords = included
+      .filter(w => !aiWordSet.has(w.toLowerCase()))
+      .slice(0, Math.max(0, MAX_KEYWORDS - aiWords.length));
+
+    const allWords = [...aiWords, ...extraWords];
+
+    const keywords = allWords.map(word => ({
       id: crypto.randomUUID(),
       word
     }));
@@ -248,6 +259,12 @@ export async function generateMetadataForPhoto(photoId) {
 
 /** @type {import('svelte/store').Writable<boolean>} */
 export const isBulkGenerating = writable(false);
+
+/**
+ * Global include keywords — added to ALL photos after generate
+ * @type {import('svelte/store').Writable<string[]>}
+ */
+export const includeKeywords = writable([]);
 
 /**
  * Generate metadata for all pending/error photos sequentially
@@ -273,7 +290,7 @@ export async function generateAllMetadata() {
 }
 
 /**
- * Reset everything — clear all photos and metadata
+ * Reset everything — clear all photos and metadata (include keywords are preserved)
  */
 export function resetAll() {
   // Revoke all object URLs to free memory
