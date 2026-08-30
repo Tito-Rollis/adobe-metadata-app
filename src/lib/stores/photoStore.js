@@ -271,3 +271,14 @@ export async function generateAllMetadata() {
 
   isBulkGenerating.set(false);
 }
+
+/**
+ * Reset everything — clear all photos and metadata
+ */
+export function resetAll() {
+  // Revoke all object URLs to free memory
+  get(photos).forEach(p => URL.revokeObjectURL(p.previewUrl));
+  photos.set([]);
+  selectedPhotoId.set(null);
+  isBulkGenerating.set(false);
+}

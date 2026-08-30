@@ -1,5 +1,5 @@
 <script>
-  import { photos, isBulkGenerating, generateAllMetadata } from '$lib/stores/photoStore.js';
+  import { photos, isBulkGenerating, generateAllMetadata, resetAll } from '$lib/stores/photoStore.js';
 
   function exportCSV() {
     const rows = [];
@@ -30,6 +30,13 @@
     a.download = 'adobe-stock-metadata.csv';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handleReset() {
+    if ($photos.length === 0) return;
+    if (confirm(`Reset everything? This will remove all ${$photos.length} photo(s) and their metadata.`)) {
+      resetAll();
+    }
   }
 
   $: doneCount = $photos.filter(p => p.status === 'done' || p.keywords.length > 0).length;
@@ -84,6 +91,25 @@
           </svg>
           Generate All ({pendingCount})
         {/if}
+      </button>
+    {/if}
+
+    <!-- Reset All button -->
+    {#if $photos.length > 0 && !$isBulkGenerating}
+      <button
+        on:click={handleReset}
+        title="Reset everything — remove all photos and metadata"
+        class="flex items-center gap-2 px-4 py-2 bg-bg-primary border border-border
+               hover:border-red-400 hover:text-red-400 text-text-muted text-sm font-medium
+               rounded-lg transition-colors"
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3,6 5,6 21,6"/>
+          <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/>
+          <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+        </svg>
+        Reset All
       </button>
     {/if}
 

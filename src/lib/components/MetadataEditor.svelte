@@ -12,6 +12,8 @@
   let newKeyword = '';
   let titleReorderTimeout = null;
   let reorderNotice = false;
+  let copyNotice = false;
+  let pasteNotice = 0;
 
   // Local copies bound to the selected photo
   $: photo = $selectedPhoto;
@@ -75,7 +77,61 @@
     }
   }
 
-  /** Remove a keyword by id */
+  /** Copy all keywords to clipboard as comma-separated text */
+  async function copyKeywords() {
+    if (!photo || photo.keywords.length === 0) return;
+    const text = photo.keywords.map(k => k.word).join(', ');
+    await navigator.clipboard.writeText(text);
+    copyNotice = true;
+    setTimeout(() => copyNotice = false, 2000);
+  }
+
+  /** Paste keywords from clipboard — parse comma/newline separated words */
+  async function pasteKeywords() {
+    if (!photo) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) return;
+
+      // Split by comma or newline, clean up each word
+      const incoming = text
+        .split(/[,\n]+/)
+        .map(w => w.trim().toLowerCase())
+        .filter(w => w.length > 0);
+
+      if (incoming.length === 0) return;
+
+      // Merge with existing, skip duplicates, respect max limit
+      const existing = photo.keywords.map(k => k.word);
+      const toAdd = incoming
+        .filter(w => !existing.includes(w))
+        .slice(0, MAX_KEYWORDS - photo.keywords.length);
+
+      if (toAdd.length === 0) return;
+
+      const newKeywords = [
+        ...photo.keywords,
+        ...toAdd.map(word => ({ id: crypto.randomUUID(), word }))
+      ];
+
+      updatePhoto(photo.id, { keywords: newKeywords });
+
+      // Trigger reorder if title exists
+      if (photo.title.trim()) {
+        setTimeout(() => {
+          reorderKeywordsByTitle(photo.id, photo.title);
+          showReorderNotice();
+        }, 50);
+      }
+
+      pasteNotice = toAdd.length;
+      setTimeout(() => pasteNotice = 0, 2000);
+    } catch (err) {
+      console.error('Clipboard read failed:', err);
+    }
+  }
+
+
   function removeKeyword(id) {
     updatePhoto(photo.id, {
       keywords: photo.keywords.filter(k => k.id !== id)
@@ -235,6 +291,42 @@
             {#if reorderNotice}
               <span class="text-xs text-accent animate-pulse">↕ Keywords reordered</span>
             {/if}
+            {#if copyNotice}
+              <span class="text-xs text-green-400 animate-pulse">✓ Copied!</span>
+            {/if}
+            {#if pasteNotice > 0}
+              <span class="text-xs text-green-400 animate-pulse">✓ +{pasteNotice} pasted</span>
+            {/if}
+            <!-- Copy button -->
+            <button
+              on:click={copyKeywords}
+              disabled={keywordCount === 0}
+              title="Copy all keywords to clipboard"
+              class="flex items-center gap-1.5 px-2.5 py-1 bg-bg-primary border border-border
+                     hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed
+                     text-text-muted hover:text-text-primary text-xs rounded-lg transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+              Copy
+            </button>
+            <!-- Paste button -->
+            <button
+              on:click={pasteKeywords}
+              disabled={keywordCount >= MAX_KEYWORDS}
+              title="Paste keywords from clipboard (comma or newline separated)"
+              class="flex items-center gap-1.5 px-2.5 py-1 bg-bg-primary border border-border
+                     hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed
+                     text-text-muted hover:text-text-primary text-xs rounded-lg transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
+                <rect x="8" y="2" width="8" height="4" rx="1"/>
+              </svg>
+              Paste
+            </button>
             <span class="text-xs {keywordCountClass}">
               {keywordCount}/{MAX_KEYWORDS}
             </span>
