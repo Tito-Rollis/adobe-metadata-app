@@ -13,7 +13,6 @@
   let titleReorderTimeout = null;
   let reorderNotice = false;
   let copyNotice = false;
-  let pasteNotice = 0;
 
   // Local copies bound to the selected photo
   $: photo = $selectedPhoto;
@@ -53,22 +52,40 @@
     updatePhoto(photo.id, { keywords: e.detail.items });
   }
 
-  /** Add a new keyword */
+  /**
+   * Add keywords from input — supports multiple keywords separated by commas
+   * e.g. "beach, woman, sunset" → 3 separate keywords
+   */
   function addKeyword() {
-    const word = newKeyword.trim().toLowerCase();
-    if (!word) return;
-    if (photo.keywords.length >= MAX_KEYWORDS) return;
-    if (photo.keywords.some(k => k.word === word)) {
+    if (!newKeyword.trim()) return;
+
+    // Split by comma, clean each word
+    const words = newKeyword
+      .split(',')
+      .map(w => w.trim().toLowerCase())
+      .filter(w => w.length > 0);
+
+    if (words.length === 0) return;
+
+    const existing = photo.keywords.map(k => k.word);
+    const toAdd = words
+      .filter(w => !existing.includes(w))
+      .slice(0, MAX_KEYWORDS - photo.keywords.length);
+
+    if (toAdd.length === 0) {
       newKeyword = '';
       return;
     }
 
     updatePhoto(photo.id, {
-      keywords: [...photo.keywords, { id: crypto.randomUUID(), word }]
+      keywords: [
+        ...photo.keywords,
+        ...toAdd.map(word => ({ id: crypto.randomUUID(), word }))
+      ]
     });
     newKeyword = '';
 
-    // Trigger reorder after adding keyword, if title exists
+    // Trigger reorder after adding, if title exists
     if (photo.title.trim()) {
       setTimeout(() => {
         reorderKeywordsByTitle(photo.id, photo.title);
@@ -86,52 +103,13 @@
     setTimeout(() => copyNotice = false, 2000);
   }
 
-  /** Paste keywords from clipboard — parse comma/newline separated words */
-  async function pasteKeywords() {
-    if (!photo) return;
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) return;
-
-      // Split by comma or newline, clean up each word
-      const incoming = text
-        .split(/[,\n]+/)
-        .map(w => w.trim().toLowerCase())
-        .filter(w => w.length > 0);
-
-      if (incoming.length === 0) return;
-
-      // Merge with existing, skip duplicates, respect max limit
-      const existing = photo.keywords.map(k => k.word);
-      const toAdd = incoming
-        .filter(w => !existing.includes(w))
-        .slice(0, MAX_KEYWORDS - photo.keywords.length);
-
-      if (toAdd.length === 0) return;
-
-      const newKeywords = [
-        ...photo.keywords,
-        ...toAdd.map(word => ({ id: crypto.randomUUID(), word }))
-      ];
-
-      updatePhoto(photo.id, { keywords: newKeywords });
-
-      // Trigger reorder if title exists
-      if (photo.title.trim()) {
-        setTimeout(() => {
-          reorderKeywordsByTitle(photo.id, photo.title);
-          showReorderNotice();
-        }, 50);
-      }
-
-      pasteNotice = toAdd.length;
-      setTimeout(() => pasteNotice = 0, 2000);
-    } catch (err) {
-      console.error('Clipboard read failed:', err);
-    }
+  /** Clear all keywords */
+  function clearAllKeywords() {
+    if (!photo || photo.keywords.length === 0) return;
+    updatePhoto(photo.id, { keywords: [] });
   }
 
-
+  /** Remove a keyword by id */
   function removeKeyword(id) {
     updatePhoto(photo.id, {
       keywords: photo.keywords.filter(k => k.id !== id)
@@ -294,9 +272,6 @@
             {#if copyNotice}
               <span class="text-xs text-green-400 animate-pulse">✓ Copied!</span>
             {/if}
-            {#if pasteNotice > 0}
-              <span class="text-xs text-green-400 animate-pulse">✓ +{pasteNotice} pasted</span>
-            {/if}
             <!-- Copy button -->
             <button
               on:click={copyKeywords}
@@ -312,20 +287,22 @@
               </svg>
               Copy
             </button>
-            <!-- Paste button -->
+            <!-- Clear All button -->
             <button
-              on:click={pasteKeywords}
-              disabled={keywordCount >= MAX_KEYWORDS}
-              title="Paste keywords from clipboard (comma or newline separated)"
+              on:click={clearAllKeywords}
+              disabled={keywordCount === 0}
+              title="Clear all keywords"
               class="flex items-center gap-1.5 px-2.5 py-1 bg-bg-primary border border-border
-                     hover:border-accent disabled:opacity-40 disabled:cursor-not-allowed
-                     text-text-muted hover:text-text-primary text-xs rounded-lg transition-colors"
+                     hover:border-red-400 hover:text-red-400 disabled:opacity-40 disabled:cursor-not-allowed
+                     text-text-muted text-xs rounded-lg transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>
-                <rect x="8" y="2" width="8" height="4" rx="1"/>
+                <polyline points="3,6 5,6 21,6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
               </svg>
-              Paste
+              Clear
             </button>
             <span class="text-xs {keywordCountClass}">
               {keywordCount}/{MAX_KEYWORDS}
@@ -384,7 +361,7 @@
             type="text"
             bind:value={newKeyword}
             on:keydown={handleKeywordKeydown}
-            placeholder="Add keyword..."
+            placeholder="Add keyword... (separate multiple with commas)"
             disabled={keywordCount >= MAX_KEYWORDS}
             class="flex-1 bg-bg-secondary border border-border rounded-lg px-4 py-2
                    text-text-primary placeholder-text-muted text-sm
