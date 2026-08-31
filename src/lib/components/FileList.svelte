@@ -231,8 +231,8 @@
     {#if $includeKeywords.length > 0}
       <div class="flex flex-wrap gap-1.5">
         {#each $includeKeywords as word}
-          <span class="flex items-center gap-1 px-2 py-1 bg-accent/15 border border-accent/30
-                       text-white text-xs rounded-full">
+          <span class="flex items-center gap-1 px-2 py-1 bg-bg-primary border border-border
+                       text-text-primary text-xs rounded-full">
             {word}
             <button
               on:click={() => removeIncludeKeyword(word)}
@@ -262,9 +262,9 @@
       <button
         on:click={addIncludeKeywords}
         disabled={!includeInput.trim()}
-        class="px-2.5 py-1.5 bg-bg-primary border border-border hover:border-accent
-               disabled:opacity-40 disabled:cursor-not-allowed text-text-muted
-               hover:text-text-primary text-xs rounded-lg transition-colors flex-shrink-0"
+        class="px-2.5 py-1.5 bg-accent hover:bg-accent-hover border border-accent
+               disabled:opacity-40 disabled:cursor-not-allowed text-white
+               text-xs rounded-lg transition-colors flex-shrink-0"
       >
         Add
       </button>

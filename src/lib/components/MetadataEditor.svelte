@@ -9,10 +9,20 @@
     TOP_KEYWORDS_COUNT
   } from '$lib/constants.js';
 
+  /** Svelte action to auto-focus an element when it's mounted */
+  function focus(node) {
+    node.focus();
+    // Select all text so user can type immediately
+    if (node.select) node.select();
+  }
+
   let newKeyword = '';
   let titleReorderTimeout = null;
   let reorderNotice = false;
   let copyNotice = false;
+  /** @type {string|null} */
+  let editingKeywordId = null;
+  let editingKeywordValue = '';
 
   // Local copies bound to the selected photo
   $: photo = $selectedPhoto;
@@ -107,6 +117,63 @@
   function clearAllKeywords() {
     if (!photo || photo.keywords.length === 0) return;
     updatePhoto(photo.id, { keywords: [] });
+  }
+
+  /**
+   * Start editing a keyword on double click
+   * @param {string} id
+   * @param {string} word
+   */
+  function startEditKeyword(id, word) {
+    editingKeywordId = id;
+    editingKeywordValue = word;
+  }
+
+  /** Save edited keyword */
+  function saveEditKeyword() {
+    const newWord = editingKeywordValue.trim().toLowerCase();
+    if (!newWord || !editingKeywordId) {
+      editingKeywordId = null;
+      return;
+    }
+
+    // Check duplicate (ignore current keyword being edited)
+    const isDuplicate = photo.keywords.some(
+      k => k.id !== editingKeywordId && k.word === newWord
+    );
+
+    if (!isDuplicate) {
+      updatePhoto(photo.id, {
+        keywords: photo.keywords.map(k =>
+          k.id === editingKeywordId ? { ...k, word: newWord } : k
+        )
+      });
+
+      // Reorder if title exists
+      if (photo.title.trim()) {
+        setTimeout(() => {
+          reorderKeywordsByTitle(photo.id, photo.title);
+          showReorderNotice();
+        }, 50);
+      }
+    }
+
+    editingKeywordId = null;
+    editingKeywordValue = '';
+  }
+
+  /**
+   * Handle keydown on edit input
+   * @param {KeyboardEvent} e
+   */
+  function handleEditKeydown(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEditKeyword();
+    } else if (e.key === 'Escape') {
+      editingKeywordId = null;
+      editingKeywordValue = '';
+    }
   }
 
   /** Remove a keyword by id */
@@ -263,7 +330,7 @@
         <div class="flex items-center justify-between">
           <label class="text-sm font-medium text-text-primary" for="keyword-input">
             Keywords
-            <span class="text-xs font-normal text-text-muted ml-1">(drag to reorder)</span>
+            <span class="text-xs font-normal text-text-muted ml-1">(drag to reorder · double-click to edit)</span>
           </label>
           <div class="flex items-center gap-2">
             {#if reorderNotice}
@@ -330,25 +397,43 @@
             {#each photo.keywords as keyword, index (keyword.id)}
               <div
                 animate:flip={{ duration: 200 }}
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm cursor-grab active:cursor-grabbing select-none transition-all
-                       {index < TOP_KEYWORDS_COUNT
-                         ? 'bg-accent/20 border border-accent/50 text-white'
-                         : 'bg-bg-primary border border-border text-text-primary hover:border-text-muted'}"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm select-none transition-all
+                       {editingKeywordId === keyword.id
+                         ? 'bg-bg-primary border border-accent cursor-text'
+                         : index < TOP_KEYWORDS_COUNT
+                         ? 'bg-accent/20 border border-accent/50 text-white cursor-grab active:cursor-grabbing'
+                         : 'bg-bg-primary border border-border text-text-primary hover:border-text-muted cursor-grab active:cursor-grabbing'}"
+                on:dblclick={() => startEditKeyword(keyword.id, keyword.word)}
+                title="Double-click to edit"
               >
                 <!-- Rank badge for top 10 -->
-                {#if index < TOP_KEYWORDS_COUNT}
+                {#if index < TOP_KEYWORDS_COUNT && editingKeywordId !== keyword.id}
                   <span class="text-xs text-accent font-bold w-4 text-center">{index + 1}</span>
                 {/if}
-                <span>{keyword.word}</span>
-                <button
-                  on:click={() => removeKeyword(keyword.id)}
-                  class="ml-0.5 text-text-muted hover:text-red-400 transition-colors flex-shrink-0"
-                  aria-label="Remove keyword {keyword.word}"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M18 6L6 18M6 6l12 12"/>
-                  </svg>
-                </button>
+
+                {#if editingKeywordId === keyword.id}
+                  <!-- Inline edit input -->
+                  <input
+                    type="text"
+                    bind:value={editingKeywordValue}
+                    on:keydown={handleEditKeydown}
+                    on:blur={saveEditKeyword}
+                    class="bg-transparent text-text-primary text-sm outline-none w-24 min-w-0"
+                    use:focus
+                    aria-label="Edit keyword"
+                  />
+                {:else}
+                  <span>{keyword.word}</span>
+                  <button
+                    on:click={() => removeKeyword(keyword.id)}
+                    class="ml-0.5 text-text-muted hover:text-red-400 transition-colors flex-shrink-0"
+                    aria-label="Remove keyword {keyword.word}"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
+                {/if}
               </div>
             {/each}
           </div>
