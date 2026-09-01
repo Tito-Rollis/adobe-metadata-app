@@ -20,7 +20,9 @@
   function handleDrop(e) {
     e.preventDefault();
     isDragOver = false;
-    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer?.files || []).filter(f =>
+      f.type.startsWith('image/') || f.type === 'video/mp4' || f.type.startsWith('video/')
+    );
     if (files.length > 0) addPhotos(files);
   }
 
@@ -39,6 +41,14 @@
 
   function truncateName(name) {
     return name.length > 22 ? name.slice(0, 19) + '...' : name;
+  }
+
+  /** @param {number} seconds */
+  function formatDuration(seconds) {
+    if (!seconds) return '';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${String(s).padStart(2, '0')}`;
   }
 
   function addIncludeKeywords() {
@@ -85,11 +95,11 @@
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
       </svg>
       <div>
-        <p class="text-xs text-text-muted font-medium">Drop photos here</p>
-        <p class="text-xs text-text-subtle mt-0.5">or click to browse</p>
+        <p class="text-xs text-text-muted font-medium">Drop photos or videos</p>
+        <p class="text-xs text-text-subtle mt-0.5">JPG, PNG, MP4 · click to browse</p>
       </div>
     </div>
-    <input bind:this={fileInput} type="file" accept="image/*" multiple class="hidden" on:change={handleFileInput}/>
+    <input bind:this={fileInput} type="file" accept="image/*,video/mp4,video/*" multiple class="hidden" on:change={handleFileInput}/>
   </div>
 
   <!-- Photo Count -->
@@ -112,8 +122,16 @@
         aria-pressed={isSelected}
       >
         <!-- Thumbnail -->
-        <div class="w-9 h-9 rounded overflow-hidden shrink-0 bg-bg-panel border border-border">
+        <div class="w-9 h-9 rounded overflow-hidden shrink-0 bg-bg-panel border border-border relative">
           <img src={photo.previewUrl} alt={photo.file.name} class="w-full h-full object-cover" loading="lazy"/>
+          {#if photo.isVideo}
+            <!-- Video play icon overlay -->
+            <div class="absolute inset-0 flex items-center justify-center bg-black/30">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
+                <polygon points="5,3 19,12 5,21"/>
+              </svg>
+            </div>
+          {/if}
         </div>
 
         <!-- Info -->
@@ -125,11 +143,11 @@
             <span class="w-1.5 h-1.5 rounded-full shrink-0 {status.dot}"></span>
             <p class="text-xs text-text-muted truncate">
               {#if photo.status === 'done'}
-                {photo.keywords.length} keywords
+                {photo.keywords.length} kw{photo.isVideo && photo.duration ? ` · ${formatDuration(photo.duration)}` : ''}
               {:else if photo.status === 'error'}
                 <span class="text-danger">Error</span>
               {:else}
-                {status.label}
+                {status.label}{photo.isVideo && photo.duration ? ` · ${formatDuration(photo.duration)}` : ''}
               {/if}
             </p>
           </div>

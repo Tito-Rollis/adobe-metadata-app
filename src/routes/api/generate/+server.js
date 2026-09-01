@@ -14,6 +14,7 @@ export async function POST({ request }) {
     const formData = await request.formData();
     const imageFile = formData.get('image');
     const keywordCount = parseInt(formData.get('keywordCount') || '49');
+    const isVideo = formData.get('isVideo') === 'true';
 
     // Use client-provided key if present, fallback to server env key
     const clientKey = formData.get('apiKey')?.toString().trim();
@@ -36,7 +37,14 @@ export async function POST({ request }) {
 
     const categoriesList = ADOBE_STOCK_CATEGORIES.join(', ');
 
-    const prompt = `You are an expert Adobe Stock metadata specialist. Analyze this image and generate optimized metadata following Adobe Stock guidelines strictly.
+    const assetType = isVideo ? 'stock video clip' : 'stock photo';
+    const videoExtra = isVideo ? `
+NOTE: This is a VIDEO frame. For video-specific keywords, include relevant motion/technique terms if visible or inferable:
+- Motion: moving, flowing, flying, running, driving, rotating, etc.
+- Technique: timelapse, slowmotion, aerial, handheld, zoom, tracking, etc.
+- Also include: the word "video" as one of the keywords` : '';
+
+    const prompt = `You are an expert Adobe Stock metadata specialist. Analyze this ${assetType} and generate optimized metadata following Adobe Stock guidelines strictly.
 
 RULES:
 1. TITLE: 
@@ -52,6 +60,7 @@ RULES:
    - Order by importance (most relevant first — these become top 10 which have biggest search impact)
    - Cover: main subject, action, setting, mood/emotion, concept, demographics, camera perspective
    - NO brand names, NO synonyms of same word, NO spam
+${videoExtra}
 
 3. CATEGORY: Choose ONE from this list: ${categoriesList}
 

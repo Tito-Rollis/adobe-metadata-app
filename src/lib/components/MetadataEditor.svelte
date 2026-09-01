@@ -139,13 +139,40 @@
       <!-- Preview + Generate -->
       <div class="flex gap-4 items-start p-4 bg-bg-secondary rounded-lg border border-border">
         <div class="w-40 h-28 rounded-md overflow-hidden shrink-0 bg-bg-panel border border-border">
-          <img src={photo.previewUrl} alt={photo.file.name} class="w-full h-full object-cover"/>
+          {#if photo.isVideo}
+            <video
+              src={photo.previewUrl}
+              class="w-full h-full object-cover"
+              controls
+              muted
+              preload="metadata"
+            >
+              <track kind="captions"/>
+            </video>
+          {:else}
+            <img src={photo.previewUrl} alt={photo.file.name} class="w-full h-full object-cover"/>
+          {/if}
         </div>
         <div class="flex-1 flex flex-col justify-between h-28 min-w-0">
           <div>
-            <p class="text-sm text-text-primary font-medium truncate">{photo.file.name}</p>
+            <div class="flex items-center gap-1.5">
+              {#if photo.isVideo}
+                <span class="flex items-center gap-1 text-xs text-accent bg-accent-muted px-1.5 py-0.5 rounded font-medium shrink-0">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5,3 19,12 5,21"/>
+                  </svg>
+                  MP4
+                </span>
+              {/if}
+              <p class="text-sm text-text-primary font-medium truncate">{photo.file.name}</p>
+            </div>
             <p class="text-xs text-text-muted mt-0.5">
-              {(photo.file.size / 1024 / 1024).toFixed(1)} MB · {photo.file.type.split('/')[1]?.toUpperCase()}
+              {(photo.file.size / 1024 / 1024).toFixed(1)} MB
+              {#if photo.isVideo && photo.duration}
+                · {Math.floor(photo.duration / 60)}:{String(photo.duration % 60).padStart(2, '0')}
+              {:else if !photo.isVideo}
+                · {photo.file.type.split('/')[1]?.toUpperCase()}
+              {/if}
             </p>
             {#if photo.status === 'error'}
               <p class="text-danger text-xs mt-2 bg-danger-muted px-2 py-1.5 rounded-md border border-danger/20">
@@ -162,7 +189,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
                 <path d="M21 12a9 9 0 00-9-9"/>
               </svg>
-              Generating...
+              {photo.isVideo ? 'Analyzing video...' : 'Generating...'}
             {:else if photo.status === 'done'}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -172,7 +199,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="5,3 19,12 5,21"/>
               </svg>
-              Generate Metadata
+              {photo.isVideo ? 'Generate from Video' : 'Generate Metadata'}
             {/if}
           </button>
         </div>

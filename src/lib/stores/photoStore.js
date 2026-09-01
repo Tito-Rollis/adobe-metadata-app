@@ -18,6 +18,8 @@ import { apiKey } from '$lib/stores/apiKeyStore.js';
  * @property {Keyword[]} keywords
  * @property {string} category
  * @property {string|null} errorMessage
+ * @property {boolean} isVideo
+ * @property {number} [duration] - video duration in seconds
  */
 
 /** @type {import('svelte/store').Writable<PhotoItem[]>} */
@@ -32,7 +34,7 @@ export const selectedPhoto = derived(
 );
 
 /**
- * Add photos to the store
+ * Add photos/videos to the store
  * @param {File[]} files
  */
 export function addPhotos(files) {
@@ -44,12 +46,14 @@ export function addPhotos(files) {
     title: '',
     keywords: [],
     category: '',
-    errorMessage: null
+    errorMessage: null,
+    isVideo: file.type === 'video/mp4' || file.type.startsWith('video/'),
+    duration: null
   }));
 
   photos.update(current => [...current, ...newPhotos]);
 
-  // Auto-select first photo if none selected
+  // Auto-select first if none selected
   selectedPhotoId.update(current => {
     if (!current && newPhotos.length > 0) return newPhotos[0].id;
     return current;
@@ -199,6 +203,75 @@ export function compressImage(file) {
 }
 
 /**
+ * Extract a frame from a video file at a given time
+ * Also saves video duration back to store
+ * @param {File} videoFile
+ * @param {string} photoId
+ * @param {number} [seekTime=1] - seconds into video to capture
+ * @returns {Promise<Blob>}
+ */
+export function extractVideoFrame(videoFile, photoId, seekTime = 1) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(videoFile);
+
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+
+    video.onloadedmetadata = () => {
+      // Save duration to store
+      const duration = Math.round(video.duration);
+      updatePhoto(photoId, { duration });
+
+      // Seek to frame (use 10% into video or seekTime, whichever is smaller)
+      const target = Math.min(seekTime, video.duration * 0.1);
+      video.currentTime = target > 0 ? target : 0;
+    };
+
+    video.onseeked = () => {
+      const MAX_DIM = 1600;
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round((height * MAX_DIM) / width);
+          width = MAX_DIM;
+        } else {
+          width = Math.round((width * MAX_DIM) / height);
+          height = MAX_DIM;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, width, height);
+
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to extract video frame'));
+        },
+        'image/jpeg',
+        0.85
+      );
+    };
+
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load video'));
+    };
+
+    video.src = url;
+  });
+}
+
+/**
  * Generate metadata for a single photo via Gemini API
  * Retries once after 5s if Gemini returns a 500 error
  * @param {string} photoId
@@ -214,9 +287,14 @@ export async function generateMetadataForPhoto(photoId) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const compressed = await compressImage(photo.file);
+      // Extract frame for video, compress for image
+      const imageBlob = photo.isVideo
+        ? await extractVideoFrame(photo.file, photoId)
+        : await compressImage(photo.file);
+
       const formData = new FormData();
-      formData.append('image', compressed, 'image.jpg');
+      formData.append('image', imageBlob, 'image.jpg');
+      if (photo.isVideo) formData.append('isVideo', 'true');
 
       // Tell API how many keywords to generate — reserve slots for include keywords
       const included = get(includeKeywords);
