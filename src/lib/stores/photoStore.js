@@ -224,9 +224,9 @@ export function extractVideoFrame(videoFile, photoId, seekTime = 1) {
       const duration = Math.round(video.duration);
       updatePhoto(photoId, { duration });
 
-      // Seek to frame (use 10% into video or seekTime, whichever is smaller)
-      const target = Math.min(seekTime, video.duration * 0.1);
-      video.currentTime = target > 0 ? target : 0;
+      // Seek to middle of video (50%) for best representative frame
+      const target = video.duration / 2;
+      video.currentTime = target;
     };
 
     video.onseeked = () => {
