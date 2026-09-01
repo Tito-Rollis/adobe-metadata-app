@@ -1,9 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '$env/static/private';
 import { json, error } from '@sveltejs/kit';
-import { ADOBE_STOCK_CATEGORIES, MAX_TITLE_LENGTH, MAX_KEYWORDS, MIN_KEYWORDS } from '$lib/constants.js';
-
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+import { ADOBE_STOCK_CATEGORIES, MAX_TITLE_LENGTH, MAX_KEYWORDS } from '$lib/constants.js';
 
 // Tell Vercel to allow up to 60s for this function
 export const config = {
@@ -17,10 +15,19 @@ export async function POST({ request }) {
     const imageFile = formData.get('image');
     const keywordCount = parseInt(formData.get('keywordCount') || '49');
 
+    // Use client-provided key if present, fallback to server env key
+    const clientKey = formData.get('apiKey')?.toString().trim();
+    const key = clientKey || GEMINI_API_KEY;
+
+    if (!key) {
+      throw error(400, 'No API key provided. Please add your Gemini API key in the sidebar.');
+    }
+
     if (!imageFile) {
       throw error(400, 'No image provided');
     }
 
+    const genAI = new GoogleGenerativeAI(key);
     const imageBuffer = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageFile.type || 'image/jpeg';
@@ -94,6 +101,6 @@ Respond ONLY with valid JSON in this exact format:
   } catch (err) {
     console.error('Gemini API error:', err);
     if (err.status) throw err;
-    throw error(500, 'Failed to generate metadata');
+    throw error(500, err.message || 'Failed to generate metadata');
   }
 }

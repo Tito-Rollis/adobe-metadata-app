@@ -5,11 +5,11 @@
 </script>
 
 <svelte:head>
-  <title>Adobe Stock Metadata Generator</title>
-  <meta name="description" content="Auto-generate Adobe Stock metadata for your photos using AI" />
+  <title>Stock Metadata Generator</title>
+  <meta name="description" content="AI-powered Adobe Stock metadata generator" />
 </svelte:head>
 
-<div class="flex flex-col h-screen overflow-hidden">
+<div class="flex flex-col h-screen overflow-hidden bg-bg-primary">
   <Header />
   <div class="flex flex-1 overflow-hidden">
     <FileList />

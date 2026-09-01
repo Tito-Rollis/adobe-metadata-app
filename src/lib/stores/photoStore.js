@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { ADOBE_STOCK_CATEGORIES, MAX_KEYWORDS } from '$lib/constants.js';
+import { apiKey } from '$lib/stores/apiKeyStore.js';
 
 /**
  * @typedef {Object} Keyword
@@ -221,6 +222,10 @@ export async function generateMetadataForPhoto(photoId) {
       const included = get(includeKeywords);
       const aiKeywordCount = Math.max(15, MAX_KEYWORDS - included.length);
       formData.append('keywordCount', String(aiKeywordCount));
+
+      // Send client API key if available
+      const key = get(apiKey);
+      if (key) formData.append('apiKey', key);
 
       const response = await fetch('/api/generate', {
         method: 'POST',
