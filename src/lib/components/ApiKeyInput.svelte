@@ -43,15 +43,27 @@
 
   <div class="flex gap-1.5">
     <div class="relative flex-1 min-w-0">
-      <input
-        type={showKey ? 'text' : 'password'}
-        bind:value={inputValue}
-        on:keydown={handleKeydown}
-        placeholder="Paste API key here..."
-        class="w-full pr-8 font-mono text-xs"
-        autocomplete="off"
-        spellcheck="false"
-      />
+      {#if showKey}
+        <input
+          type="text"
+          bind:value={inputValue}
+          on:keydown={handleKeydown}
+          placeholder="Paste API key here..."
+          class="w-full pr-8 font-mono text-xs"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      {:else}
+        <input
+          type="password"
+          bind:value={inputValue}
+          on:keydown={handleKeydown}
+          placeholder="Paste API key here..."
+          class="w-full pr-8 font-mono text-xs"
+          autocomplete="off"
+          spellcheck="false"
+        />
+      {/if}
       <!-- Show/hide toggle -->
       <button
         on:click={() => showKey = !showKey}

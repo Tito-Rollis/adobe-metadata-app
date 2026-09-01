@@ -270,6 +270,9 @@
                          ? 'badge-top10 cursor-grab active:cursor-grabbing'
                          : 'badge-normal cursor-grab active:cursor-grabbing'}"
                 on:dblclick={() => startEditKeyword(keyword.id, keyword.word)}
+                role="button"
+                tabindex="0"
+                on:keydown={e => e.key === 'Enter' && startEditKeyword(keyword.id, keyword.word)}
                 title="Double-click to edit"
               >
                 {#if index < TOP_KEYWORDS_COUNT && editingKeywordId !== keyword.id}
