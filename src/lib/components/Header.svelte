@@ -1,9 +1,12 @@
 <script>
   import { photos, isBulkGenerating, generateAllMetadata, resetAll } from '$lib/stores/photoStore.js';
+  import { mapToShutterstockCategory } from '$lib/constants.js';
 
-  function exportCSV() {
-    const rows = [];
-    rows.push(['Filename', 'Title', 'Keywords', 'Category', 'Release(s)']);
+  let showExportMenu = false;
+
+  function exportAdobeCSV() {
+    showExportMenu = false;
+    const rows = [['Filename', 'Title', 'Keywords', 'Category', 'Release(s)']];
 
     $photos.forEach(photo => {
       if (photo.status === 'done' || photo.keywords.length > 0) {
@@ -17,17 +20,41 @@
       }
     });
 
-    if (rows.length <= 1) {
-      alert('No completed metadata to export. Please generate metadata for at least one photo first.');
-      return;
-    }
+    if (rows.length <= 1) { alert('No completed metadata to export.'); return; }
+    downloadCSV(rows, 'adobe-stock-metadata.csv');
+  }
 
+  function exportShutterstockCSV() {
+    showExportMenu = false;
+    const rows = [['Filename', 'Description', 'Keywords', 'Categories', 'Illustration', 'Mature Content', 'Editorial']];
+
+    $photos.forEach(photo => {
+      if (photo.status === 'done' || photo.keywords.length > 0) {
+        const ssCategory = mapToShutterstockCategory(photo.category);
+        rows.push([
+          photo.file.name,
+          `"${photo.title.replace(/"/g, '""')}"`,
+          `"${photo.keywords.map(k => k.word).join(', ').replace(/"/g, '""')}"`,
+          `"${ssCategory}"`,
+          'No',
+          'No',
+          'No'
+        ]);
+      }
+    });
+
+    if (rows.length <= 1) { alert('No completed metadata to export.'); return; }
+    downloadCSV(rows, 'shutterstock-metadata.csv');
+  }
+
+  /** @param {string[][]} rows @param {string} filename */
+  function downloadCSV(rows, filename) {
     const csvContent = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'adobe-stock-metadata.csv';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -106,16 +133,58 @@
       </button>
     {/if}
 
-    <!-- Export CSV -->
-    <button
-      on:click={exportCSV}
-      disabled={doneCount === 0}
-      class="btn-primary text-xs"
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-      </svg>
-      Export CSV
-    </button>
+    <!-- Export CSV dropdown -->
+    <div class="relative">
+      <button
+        on:click={() => showExportMenu = !showExportMenu}
+        disabled={doneCount === 0}
+        class="btn-primary text-xs"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Export CSV
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="6,9 12,15 18,9"/>
+        </svg>
+      </button>
+
+      {#if showExportMenu}
+        <!-- Backdrop -->
+        <button
+          class="fixed inset-0 z-10"
+          on:click={() => showExportMenu = false}
+          aria-label="Close menu"
+        />
+        <!-- Dropdown -->
+        <div class="absolute right-0 top-full mt-1 z-20 bg-bg-panel border border-border rounded-lg shadow-xl overflow-hidden min-w-44">
+          <button
+            on:click={exportAdobeCSV}
+            class="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-text-primary hover:bg-bg-hover transition-colors text-left"
+          >
+            <div class="w-5 h-5 rounded bg-red-600/20 border border-red-500/30 flex items-center justify-center shrink-0">
+              <span class="text-red-400 font-bold text-xs leading-none">A</span>
+            </div>
+            <div>
+              <p class="font-medium">Adobe Stock</p>
+              <p class="text-text-subtle text-xs">Filename, Title, Keywords, Category</p>
+            </div>
+          </button>
+          <div class="border-t border-border"/>
+          <button
+            on:click={exportShutterstockCSV}
+            class="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-text-primary hover:bg-bg-hover transition-colors text-left"
+          >
+            <div class="w-5 h-5 rounded bg-red-800/20 border border-red-700/30 flex items-center justify-center shrink-0">
+              <span class="text-red-300 font-bold text-xs leading-none">S</span>
+            </div>
+            <div>
+              <p class="font-medium">Shutterstock</p>
+              <p class="text-text-subtle text-xs">Filename, Description, Keywords, Category</p>
+            </div>
+          </button>
+        </div>
+      {/if}
+    </div>
   </div>
 </header>
