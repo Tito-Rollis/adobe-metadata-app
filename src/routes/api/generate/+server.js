@@ -3,7 +3,7 @@ import { GEMINI_API_KEY } from '$env/static/private';
 import { json, error } from '@sveltejs/kit';
 import { ADOBE_STOCK_CATEGORIES, MAX_TITLE_LENGTH, MAX_KEYWORDS } from '$lib/constants.js';
 
-// Tell Vercel to allow up to 60s for this function
+// Vercel Hobby plan max is 60s
 export const config = {
   maxDuration: 60
 };
@@ -33,7 +33,13 @@ export async function POST({ request }) {
     const base64Image = Buffer.from(imageBuffer).toString('base64');
     const mimeType = imageFile.type || 'image/jpeg';
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' });
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.4,
+      }
+    });
 
     const categoriesList = ADOBE_STOCK_CATEGORIES.join(', ');
 

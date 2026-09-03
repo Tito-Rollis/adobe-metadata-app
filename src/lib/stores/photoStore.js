@@ -166,7 +166,7 @@ export function compressImage(file) {
     const url = URL.createObjectURL(file);
 
     img.onload = () => {
-      const MAX_DIM = 1600;
+      const MAX_DIM = 1024;  // Reduced from 1600 — smaller = faster API response
       let { width, height } = img;
 
       if (width > MAX_DIM || height > MAX_DIM) {
@@ -189,7 +189,7 @@ export function compressImage(file) {
       canvas.toBlob(
         (blob) => resolve(blob || file),
         'image/jpeg',
-        0.85
+        0.75  // Reduced from 0.85 — smaller payload, faster response
       );
     };
 
@@ -230,7 +230,7 @@ export function extractVideoFrame(videoFile, photoId, seekTime = 1) {
     };
 
     video.onseeked = () => {
-      const MAX_DIM = 1600;
+      const MAX_DIM = 1024;  // Reduced from 1600 — smaller = faster API response
       let width = video.videoWidth;
       let height = video.videoHeight;
 
