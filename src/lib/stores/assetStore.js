@@ -14,6 +14,8 @@ import { TOP_KEYWORDS_COUNT, MAX_KEYWORDS } from '$lib/constants.js';
  * @property {string} title
  * @property {Keyword[]} keywords
  * @property {'pending' | 'edited'} status
+ * @property {string|null} previewUrl - object URL dari file yang diupload
+ * @property {boolean} isVideo
  */
 
 /** @type {import('svelte/store').Writable<Asset[]>} */
@@ -69,7 +71,9 @@ export function parseCSV(text, format) {
         filename,
         title,
         keywords,
-        status: 'pending'
+        status: 'pending',
+        previewUrl: null,
+        isVideo: false
       };
     })
     .filter(Boolean);
@@ -178,6 +182,30 @@ export function reorderKeywordsByTitle(assetId, newTitle) {
  * Reset all assets
  */
 export function resetAll() {
+  // Revoke object URLs to free memory
+  get(assets).forEach(a => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
   assets.set([]);
   selectedAssetId.set(null);
+}
+
+/**
+ * Attach uploaded media files to matching assets by filename
+ * @param {File[]} files
+ */
+export function attachMediaFiles(files) {
+  assets.update(current =>
+    current.map(asset => {
+      const match = files.find(f => f.name === asset.filename);
+      if (!match) return asset;
+
+      // Revoke old URL if exists
+      if (asset.previewUrl) URL.revokeObjectURL(asset.previewUrl);
+
+      return {
+        ...asset,
+        previewUrl: URL.createObjectURL(match),
+        isVideo: match.type.startsWith('video/')
+      };
+    })
+  );
 }

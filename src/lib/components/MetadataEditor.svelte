@@ -145,6 +145,29 @@
   {:else}
     <div class="max-w-2xl mx-auto space-y-5">
 
+      <!-- Preview (hanya jika ada media yang diupload) -->
+      {#if asset.previewUrl}
+        <div class="rounded-lg overflow-hidden border border-border bg-bg-secondary" style="max-height: 280px">
+          {#if asset.isVideo}
+            <video
+              src={asset.previewUrl}
+              class="w-full object-contain max-h-64"
+              controls
+              muted
+              preload="metadata"
+            >
+              <track kind="captions"/>
+            </video>
+          {:else}
+            <img
+              src={asset.previewUrl}
+              alt={asset.filename}
+              class="w-full object-contain max-h-64"
+            />
+          {/if}
+        </div>
+      {/if}
+
       <!-- Asset info bar -->
       <div class="flex items-center gap-3 px-4 py-3 bg-bg-secondary rounded-lg border border-border">
         <div class="w-8 h-8 rounded bg-bg-panel border border-border flex items-center justify-center shrink-0">
