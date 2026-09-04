@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { TOP_KEYWORDS_COUNT, MAX_KEYWORDS } from '$lib/constants.js';
+import { TOP_KEYWORDS_COUNT, splitKeyword } from '$lib/constants.js';
 
 /**
  * @typedef {'adobe' | 'shutterstock'} CsvFormat
@@ -104,7 +104,8 @@ export function applyCSVMetadata(text, format) {
         .split(',')
         .map(w => w.trim().toLowerCase())
         .filter(w => w.length > 0)
-        .slice(0, MAX_KEYWORDS)
+        .flatMap(w => splitKeyword(w))          // split 2-word non-compound keywords
+        .filter((w, i, arr) => arr.indexOf(w) === i)  // remove duplicates
         .map(word => ({ id: crypto.randomUUID(), word }));
 
       return { ...asset, title: data.title, keywords, status: 'edited' };

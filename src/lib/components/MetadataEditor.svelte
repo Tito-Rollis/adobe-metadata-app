@@ -2,7 +2,7 @@
   import { dndzone } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
   import { selectedAsset, updateAsset, reorderKeywordsByTitle } from '$lib/stores/assetStore.js';
-  import { MAX_TITLE_LENGTH, MAX_KEYWORDS, TOP_KEYWORDS_COUNT } from '$lib/constants.js';
+  import { MAX_TITLE_LENGTH, TOP_KEYWORDS_COUNT } from '$lib/constants.js';
 
   /** Svelte action: focus element on mount */
   function focus(node) {
@@ -54,7 +54,7 @@
     if (!newKeyword.trim()) return;
     const words = newKeyword.split(',').map(w => w.trim().toLowerCase()).filter(w => w.length > 0);
     const existing = asset.keywords.map(k => k.word);
-    const toAdd = words.filter(w => !existing.includes(w)).slice(0, MAX_KEYWORDS - asset.keywords.length);
+    const toAdd = words.filter(w => !existing.includes(w));
     if (toAdd.length === 0) { newKeyword = ''; return; }
 
     updateAsset(asset.id, {
@@ -121,7 +121,7 @@
   $: titleLength = asset?.title?.length || 0;
   $: titleLengthColor = titleLength > MAX_TITLE_LENGTH ? 'text-danger' : titleLength > 55 ? 'text-warning' : 'text-text-subtle';
   $: keywordCount = asset?.keywords?.length || 0;
-  $: keywordCountColor = keywordCount > MAX_KEYWORDS ? 'text-danger' : keywordCount >= 15 ? 'text-success' : 'text-warning';
+  $: keywordCountColor = keywordCount > 49 ? 'text-danger' : keywordCount >= 15 ? 'text-success' : 'text-warning';
 </script>
 
 <main class="flex-1 overflow-y-auto bg-bg-primary p-5">
@@ -234,7 +234,7 @@
               </svg>
               Clear
             </button>
-            <span class="text-xs {keywordCountColor} tabular-nums">{keywordCount}/{MAX_KEYWORDS}</span>
+            <span class="text-xs {keywordCountColor} tabular-nums">{keywordCount} kw{keywordCount > 49 ? ' ⚠ >49' : ''}</span>
           </div>
         </div>
 
@@ -308,12 +308,11 @@
             bind:value={newKeyword}
             on:keydown={handleKeywordKeydown}
             placeholder="Add keyword... (separate multiple with commas)"
-            disabled={keywordCount >= MAX_KEYWORDS}
             class="flex-1"
           />
           <button
             on:click={addKeyword}
-            disabled={!newKeyword.trim() || keywordCount >= MAX_KEYWORDS}
+            disabled={!newKeyword.trim()}
             class="btn-secondary text-xs"
           >
             Add
@@ -323,10 +322,10 @@
         <!-- Keyword count hint -->
         {#if keywordCount < 15}
           <p class="text-warning text-xs">⚠ Recommend at least 15 keywords (you have {keywordCount})</p>
-        {:else if keywordCount <= 35}
+        {:else if keywordCount <= 49}
           <p class="text-success text-xs">✓ Good keyword count ({keywordCount})</p>
         {:else}
-          <p class="text-text-subtle text-xs">{keywordCount} keywords — within limit, 15–35 is optimal</p>
+          <p class="text-warning text-xs">⚠ {keywordCount} keywords — Adobe Stock max is 49, please delete some</p>
         {/if}
       </div>
 
