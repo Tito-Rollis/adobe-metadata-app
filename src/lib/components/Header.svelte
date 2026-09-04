@@ -1,5 +1,5 @@
 <script>
-  import { assets, resetAll, csvFormat } from '$lib/stores/assetStore.js';
+  import { assets, resetAll } from '$lib/stores/assetStore.js';
   import { mapToShutterstockCategory } from '$lib/constants.js';
 
   let showExportMenu = false;

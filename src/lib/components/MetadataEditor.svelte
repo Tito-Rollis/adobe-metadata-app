@@ -145,25 +145,15 @@
   {:else}
     <div class="max-w-2xl mx-auto space-y-5">
 
-      <!-- Preview (hanya jika ada media yang diupload) -->
+      <!-- Preview -->
       {#if asset.previewUrl}
-        <div class="rounded-lg overflow-hidden border border-border bg-bg-secondary" style="max-height: 280px">
+        <div class="rounded-lg overflow-hidden border border-border bg-bg-secondary">
           {#if asset.isVideo}
-            <video
-              src={asset.previewUrl}
-              class="w-full object-contain max-h-64"
-              controls
-              muted
-              preload="metadata"
-            >
+            <video src={asset.previewUrl} class="w-full max-h-56 object-contain" controls muted preload="metadata">
               <track kind="captions"/>
             </video>
           {:else}
-            <img
-              src={asset.previewUrl}
-              alt={asset.filename}
-              class="w-full object-contain max-h-64"
-            />
+            <img src={asset.previewUrl} alt={asset.filename} class="w-full max-h-56 object-contain"/>
           {/if}
         </div>
       {/if}
@@ -171,10 +161,17 @@
       <!-- Asset info bar -->
       <div class="flex items-center gap-3 px-4 py-3 bg-bg-secondary rounded-lg border border-border">
         <div class="w-8 h-8 rounded bg-bg-panel border border-border flex items-center justify-center shrink-0">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-text-subtle">
-            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-            <polyline points="14,2 14,8 20,8"/>
-          </svg>
+          {#if asset.isVideo}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-text-subtle">
+              <polygon points="5,3 19,12 5,21"/>
+            </svg>
+          {:else}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-text-subtle">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          {/if}
         </div>
         <div class="flex-1 min-w-0">
           <p class="text-sm text-text-primary font-medium truncate">{asset.filename}</p>
@@ -183,11 +180,11 @@
             <p class="text-xs text-text-muted">
               {asset.status === 'edited' ? 'Edited' : 'Not edited'}
               · {keywordCount} keywords
+              {#if asset.file}· {(asset.file.size / 1024 / 1024).toFixed(1)} MB{/if}
             </p>
           </div>
         </div>
       </div>
-
       <!-- Title -->
       <div class="space-y-1.5">
         <div class="flex items-center justify-between">
