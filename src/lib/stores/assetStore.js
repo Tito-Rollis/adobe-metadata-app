@@ -104,11 +104,15 @@ export function applyCSVMetadata(text, format) {
         .split(',')
         .map(w => w.trim().toLowerCase())
         .filter(w => w.length > 0)
-        .flatMap(w => splitKeyword(w))          // split 2-word non-compound keywords
-        .filter((w, i, arr) => arr.indexOf(w) === i)  // remove duplicates
+        .flatMap(w => splitKeyword(w))
+        .filter((w, i, arr) => arr.indexOf(w) === i)
         .map(word => ({ id: crypto.randomUUID(), word }));
 
-      return { ...asset, title: data.title, keywords, status: 'edited' };
+      // Reorder top 10 based on title relevance
+      const title = data.title;
+      const reordered = reorderByTitle(keywords, title);
+
+      return { ...asset, title, keywords: reordered, status: 'edited' };
     })
   );
 
@@ -170,7 +174,49 @@ export function removeAsset(id) {
 }
 
 /**
- * Reorder top 10 keywords by relevance to title
+ * Reorder top 10 keywords by relevance to title — pure function (no store access)
+ * @param {Array<{id:string, word:string}>} keywords
+ * @param {string} title
+ * @returns {Array<{id:string, word:string}>}
+ */
+function reorderByTitle(keywords, title) {
+  if (!title.trim() || keywords.length === 0) return keywords;
+
+  const titleWords = title.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 1);
+
+  const scored = keywords.map(kw => {
+    const word = kw.word.toLowerCase();
+    let score = 0;
+    if (titleWords.includes(word)) score += 10;
+    titleWords.forEach(tw => {
+      if (tw.includes(word) || word.includes(tw)) score += 3;
+    });
+    return { ...kw, score };
+  });
+
+  const top10 = scored.slice(0, TOP_KEYWORDS_COUNT);
+  const rest = scored.slice(TOP_KEYWORDS_COUNT);
+  top10.sort((a, b) => b.score - a.score);
+
+  const minTopScore = top10.length > 0 ? Math.min(...top10.map(k => k.score)) : 0;
+  rest.forEach((kw, i) => {
+    if (kw.score > minTopScore && top10.length > 0) {
+      const lowestIdx = top10.reduce((mi, k, idx, arr) => k.score < arr[mi].score ? idx : mi, 0);
+      const displaced = top10[lowestIdx];
+      top10[lowestIdx] = kw;
+      rest[i] = displaced;
+      top10.sort((a, b) => b.score - a.score);
+    }
+  });
+
+  return [...top10, ...rest].map(({ score, ...kw }) => kw);
+}
+
+/**
+ * Reorder top 10 keywords by relevance to title (store version)
  * @param {string} assetId
  * @param {string} newTitle
  */
@@ -178,38 +224,7 @@ export function reorderKeywordsByTitle(assetId, newTitle) {
   assets.update(current =>
     current.map(a => {
       if (a.id !== assetId || a.keywords.length === 0) return a;
-
-      const titleWords = newTitle.toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
-        .split(/\s+/)
-        .filter(w => w.length > 1);
-
-      const scored = a.keywords.map(kw => {
-        const word = kw.word.toLowerCase();
-        let score = 0;
-        if (titleWords.includes(word)) score += 10;
-        titleWords.forEach(tw => {
-          if (tw.includes(word) || word.includes(tw)) score += 3;
-        });
-        return { ...kw, score };
-      });
-
-      const top10 = scored.slice(0, TOP_KEYWORDS_COUNT);
-      const rest = scored.slice(TOP_KEYWORDS_COUNT);
-      top10.sort((a, b) => b.score - a.score);
-
-      const minTopScore = top10.length > 0 ? Math.min(...top10.map(k => k.score)) : 0;
-      rest.forEach((kw, i) => {
-        if (kw.score > minTopScore && top10.length > 0) {
-          const lowestIdx = top10.reduce((mi, k, idx, arr) => k.score < arr[mi].score ? idx : mi, 0);
-          const displaced = top10[lowestIdx];
-          top10[lowestIdx] = kw;
-          rest[i] = displaced;
-          top10.sort((a, b) => b.score - a.score);
-        }
-      });
-
-      return { ...a, keywords: [...top10, ...rest].map(({ score, ...kw }) => kw) };
+      return { ...a, keywords: reorderByTitle(a.keywords, newTitle) };
     })
   );
 }
